@@ -94,6 +94,30 @@ Ext.define('PVE.lxc.RessourceView', {
                     if (cpuunits) {
                         res += ' [cpuunits=' + cpuunits + ']';
                     }
+
+                    let numaOptimized = me.getObjectValue('numa_optimized');
+                    if (numaOptimized) {
+                        let numaParts = [];
+                        let numaNodes = me.getObjectValue('numa_nodes');
+                        let numaGrouping = me.getObjectValue('numa_grouping');
+                        let bindMemory = me.getObjectValue('numa_bind_memory');
+
+                        if (numaNodes) {
+                            numaParts.push('nodes=' + numaNodes);
+                        }
+                        if (numaGrouping) {
+                            numaParts.push('grouping=' + numaGrouping);
+                        }
+                        if (bindMemory) {
+                            numaParts.push('bind-memory');
+                        }
+
+                        if (numaParts.length) {
+                            res += ' [numa=' + numaParts.join(', ') + ']';
+                        } else {
+                            res += ' [numa=enabled]';
+                        }
+                    }
                     return res;
                 },
             },
