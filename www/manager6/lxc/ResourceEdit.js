@@ -62,6 +62,20 @@ Ext.define('PVE.lxc.CPUInputPanel', {
         let me = this;
         let cpuunitsDefault = me.getViewModel().get('cpuunitsDefault');
 
+        if (!values['numa_optimized']) {
+            delete values.numa_nodes;
+            delete values.numa_grouping;
+            delete values.numa_bind_memory;
+        } else {
+            if (!values.numa_nodes) {
+                delete values.numa_nodes;
+            }
+            PVE.Utils.delete_if_default(values, 'numa_grouping', '', me.insideWizard);
+            PVE.Utils.delete_if_default(values, 'numa_bind_memory', '0', me.insideWizard);
+        }
+
+        PVE.Utils.delete_if_default(values, 'numa_optimized', '0', me.insideWizard);
+
         PVE.Utils.delete_if_default(values, 'cpulimit', '0', me.insideWizard);
         PVE.Utils.delete_if_default(values, 'cpuunits', `${cpuunitsDefault}`, me.insideWizard);
 
@@ -78,6 +92,61 @@ Ext.define('PVE.lxc.CPUInputPanel', {
             fieldLabel: gettext('CPU limit'),
             allowBlank: true,
             emptyText: gettext('unlimited'),
+        },
+        {
+            xtype: 'proxmoxcheckbox',
+            name: 'numa_optimized',
+            reference: 'numaOptimized',
+            fieldLabel: gettext('NUMA optimized'),
+            defaultValue: 0,
+            deleteDefaultValue: true,
+            uncheckedValue: 0,
+            listeners: {
+                change: function (cb, value) {
+                    let panel = cb.up('pveLxcCPUInputPanel');
+                    panel.setNumaFieldsDisabled(!value);
+                },
+                afterrender: function (cb) {
+                    cb.fireEvent('change', cb, cb.getValue());
+                },
+            },
+        },
+        {
+            xtype: 'proxmoxtextfield',
+            name: 'numa_nodes',
+            reference: 'numaNodes',
+            fieldLabel: gettext('NUMA nodes'),
+            emptyText: gettext('auto'),
+            allowBlank: true,
+            disabled: true,
+            labelWidth: labelWidth,
+            regex: /^[0-9]+([,-][0-9]+)*$/,
+            regexText: gettext('Use comma or hyphen separated node ids'),
+        },
+        {
+            xtype: 'proxmoxKVComboBox',
+            name: 'numa_grouping',
+            reference: 'numaGrouping',
+            fieldLabel: gettext('Core selection'),
+            emptyText: Proxmox.Utils.defaultText,
+            deleteEmpty: true,
+            disabled: true,
+            labelWidth: labelWidth,
+            comboItems: [
+                ['contiguous', gettext('Contiguous')],
+                ['smt', 'SMT'],
+                ['auto', gettext('Auto')],
+            ],
+        },
+        {
+            xtype: 'proxmoxcheckbox',
+            name: 'numa_bind_memory',
+            reference: 'numaBindMemory',
+            fieldLabel: gettext('Bind memory'),
+            uncheckedValue: 0,
+            defaultValue: 0,
+            deleteDefaultValue: true,
+            disabled: true,
         },
     ],
 
@@ -102,6 +171,15 @@ Ext.define('PVE.lxc.CPUInputPanel', {
 
     initComponent: function () {
         var me = this;
+
+        me.setNumaFieldsDisabled = (disabled) => {
+            ['numaNodes', 'numaGrouping', 'numaBindMemory'].forEach((ref) => {
+                let cmp = me.lookupReference(ref);
+                if (cmp) {
+                    cmp.setDisabled(disabled);
+                }
+            });
+        };
 
         me.column1 = [
             {
